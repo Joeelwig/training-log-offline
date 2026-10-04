@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Training Log (Offline)</title>
+<style>
+:root {
+  --bg: #1b1918;
+  --surface: #26221f;
+  --surface-raised: #2e2925;
+  --text: #ede7de;
+  --text-dim: #a79e92;
+  --accent: #c1502e;
+  --accent-2: #4c6b62;
+  --border: #3a3430;
+  --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.5; }
+.page { max-width: 640px; margin: 0 auto; padding: 32px 20px 80px; }
+.site-title { font-size: 15px; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; display: block; }
+.offline-badge { display: inline-block; background: var(--accent-2); color: var(--text); font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 4px; margin-bottom: 24px; }
+h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 8px; }
+h2 { font-size: 18px; font-weight: 800; margin: 32px 0 12px; }
+.subtitle { color: var(--text-dim); font-size: 15px; margin: 0 0 24px; }
+.section-label { font-size: 13px; font-weight: 700; color: var(--text-dim); border-bottom: 2px solid var(--border); padding-bottom: 8px; margin: 32px 0 16px; }
+label { display: block; font-size: 13px; font-weight: 700; color: var(--text-dim); margin-bottom: 6px; }
+input[type="text"], input[type="date"], input[type="number"], select, textarea {
+  width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+  color: var(--text); font-family: var(--font); font-size: 16px; padding: 10px 12px; margin-bottom: 20px;
+}
+textarea { resize: vertical; min-height: 60px; }
+.exercise-block { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 4px; padding: 20px 20px 4px; margin-bottom: 20px; }
+.exercise-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.exercise-title { font-size: 16px; font-weight: 800; }
+.remove-exercise { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: 4px; width: 30px; height: 30px; cursor: pointer; font-size: 16px; }
+.field-row { display: grid; grid-template-columns: 1fr; gap: 4px; }
+.sets-label { font-size: 12px; font-weight: 700; color: var(--text-dim); margin: 16px 0 10px; }
+.set-row { display: grid; grid-template-columns: 22px 1fr 1fr 32px; gap: 8px; align-items: end; margin-bottom: 10px; }
+.set-row .set-number { color: var(--text-dim); font-weight: 700; font-size: 14px; padding-bottom: 10px; }
+.set-row input { margin-bottom: 0; }
+.remove-set { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: 4px; height: 42px; cursor: pointer; font-size: 16px; }
+.btn-add { background: none; border: 1px dashed var(--border); color: var(--text-dim); border-radius: 4px; padding: 10px 16px; font-family: var(--font); font-size: 14px; font-weight: 700; cursor: pointer; width: 100%; margin-bottom: 20px; }
+.btn-primary { background: var(--accent); border: none; color: var(--bg); border-radius: 4px; padding: 16px 24px; font-family: var(--font); font-size: 16px; font-weight: 800; cursor: pointer; width: 100%; }
+.btn-secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 14px 20px; font-family: var(--font); font-size: 15px; font-weight: 700; cursor: pointer; width: 100%; margin-bottom: 12px; }
+.flash { background: var(--accent-2); color: var(--text); padding: 12px 16px; border-radius: 4px; font-size: 14px; font-weight: 700; margin-bottom: 20px; }
+.queue-item { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 14px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+.queue-item .meta { font-size: 14px; }
+.queue-item .meta .date { font-weight: 700; }
+.queue-item .meta .detail { color: var(--text-dim); font-size: 13px; }
+.queue-empty { color: var(--text-dim); font-size: 14px; padding: 12px 0; }
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="site-title">Training Log</span>
+  <span class="offline-badge">OFFLINE MODE</span>
+  <h1>Weightlifting</h1>
+  <p class="subtitle">Saves to this phone only. Export and sync when you're home.</p>
+
+  <div id="flash-container"></div>
+
+  <form id="lift-form">
+    <label for="date">Date</label>
+    <input type="date" id="date" name="date" required>
+
+    <label for="notes">Notes (optional)</label>
+    <textarea id="notes" name="notes" placeholder="How the session felt"></textarea>
+
+    <div class="section-label">Exercises</div>
+    <div id="exercises"></div>
+    <button type="button" class="btn-add" id="add-exercise">+ Add another exercise</button>
+    <button type="submit" class="btn-primary">Save session to this phone</button>
+  </form>
+
+  <h2>Queued sessions (<span id="queue-count">0</span>)</h2>
+  <div id="queue-list"></div>
+  <button type="button" class="btn-secondary" id="export-btn">Export all queued sessions</button>
+  <button type="button" class="btn-secondary" id="clear-btn">Clear queued sessions (after import at home)</button>
+</div>
+
+<script>
+  const MOVEMENTS_BY_CATEGORY = {"Push": ["Bench Press", "Overhead Press"], "Pull": ["Face Pulls", "Pull Up", "Seated Row"], "Legs": [], "Core": ["Dead Bug"]};
+  const STORAGE_KEY = 'pending_lift_sessions';
+
+  const exercisesContainer = document.getElementById('exercises');
+  const addExerciseBtn = document.getElementById('add-exercise');
+  let exerciseCount = 0;
+
+  function titleCase(str) {
+    return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  }
+
+  function renumberExercises() {
+    exercisesContainer.querySelectorAll('.exercise-block').forEach((block, i) => {
+      block.querySelector('.exercise-title').textContent = `Exercise ${i + 1}`;
+    });
+  }
+
+  function renumberSets(block) {
+    block.querySelectorAll('.set-row').forEach((row, i) => {
+      row.querySelector('.set-number').textContent = i + 1;
+    });
+  }
+
+  function addSetRow(block) {
+    const setRows = block.querySelector('.set-rows');
+    const row = document.createElement('div');
+    row.className = 'set-row';
+    row.innerHTML = `
+      <span class="set-number"></span>
+      <div><label>Reps</label><input type="number" class="reps-input" min="1" required></div>
+      <div><label>Weight (kg)</label><input type="number" class="weight-input" step="0.5" min="0" required></div>
+      <button type="button" class="remove-set">&times;</button>
+    `;
+    row.querySelector('.remove-set').addEventListener('click', () => { row.remove(); renumberSets(block); });
+    setRows.appendChild(row);
+    renumberSets(block);
+  }
+
+  function updateMovementOptions(block) {
+    const category = block.querySelector('.category-select').value;
+    const datalist = block.querySelector('.movement-options');
+    datalist.innerHTML = '';
+    (MOVEMENTS_BY_CATEGORY[category] || []).forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      datalist.appendChild(opt);
+    });
+  }
+
+  function addExerciseBlock() {
+    exerciseCount += 1;
+    const block = document.createElement('div');
+    block.className = 'exercise-block';
+    block.innerHTML = `
+      <div class="exercise-header">
+        <span class="exercise-title">Exercise</span>
+        <button type="button" class="remove-exercise">&times;</button>
+      </div>
+      <div class="field-row">
+        <div>
+          <label>Lift Category</label>
+          <select class="category-select" required>
+            <option value="" disabled selected>Select...</option>
+            <option>Push</option><option>Pull</option><option>Legs</option><option>Core</option>
+          </select>
+        </div>
+        <div>
+          <label>Movement</label>
+          <input type="text" class="movement-input" list="movement-options-${exerciseCount}" required>
+          <datalist class="movement-options" id="movement-options-${exerciseCount}"></datalist>
+        </div>
+        <div>
+          <label>Equipment</label>
+          <select class="equipment-select" required>
+            <option value="" disabled selected>Select...</option>
+            <option>Dumbbell</option><option>Barbell</option><option>Cable</option><option>Plate</option><option>Band</option>
+          </select>
+        </div>
+      </div>
+      <div class="sets-label">Sets</div>
+      <div class="set-rows"></div>
+      <button type="button" class="btn-add btn-add-set">+ Add another set</button>
+    `;
+    block.querySelector('.remove-exercise').addEventListener('click', () => { block.remove(); renumberExercises(); });
+    block.querySelector('.category-select').addEventListener('change', () => updateMovementOptions(block));
+    block.querySelector('.movement-input').addEventListener('blur', e => { e.target.value = titleCase(e.target.value); });
+    block.querySelector('.btn-add-set').addEventListener('click', () => addSetRow(block));
+    exercisesContainer.appendChild(block);
+    addSetRow(block);
+    renumberExercises();
+  }
+
+  function getQueue() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  }
+
+  function saveQueue(queue) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(queue));
+  }
+
+  function renderQueue() {
+    const queue = getQueue();
+    document.getElementById('queue-count').textContent = queue.length;
+    const list = document.getElementById('queue-list');
+    list.innerHTML = '';
+    if (queue.length === 0) {
+      list.innerHTML = '<div class="queue-empty">Nothing queued yet.</div>';
+      return;
+    }
+    queue.forEach((session, index) => {
+      const item = document.createElement('div');
+      item.className = 'queue-item';
+      item.innerHTML = `
+        <div class="meta">
+          <div class="date">${session.date}</div>
+          <div class="detail">${session.exercises.length} exercise(s)</div>
+        </div>
+      `;
+      list.appendChild(item);
+    });
+  }
+
+  function flash(message) {
+    const container = document.getElementById('flash-container');
+    container.innerHTML = `<div class="flash">${message}</div>`;
+    setTimeout(() => { container.innerHTML = ''; }, 4000);
+  }
+
+  document.getElementById('date').valueAsDate = new Date();
+  addExerciseBtn.addEventListener('click', addExerciseBlock);
+  addExerciseBlock();
+  renderQueue();
+
+  document.getElementById('lift-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const exercises = [];
+    exercisesContainer.querySelectorAll('.exercise-block').forEach(block => {
+      const sets = [];
+      block.querySelectorAll('.set-row').forEach(row => {
+        sets.push({
+          reps: row.querySelector('.reps-input').value,
+          weight: row.querySelector('.weight-input').value
+        });
+      });
+      exercises.push({
+        category: block.querySelector('.category-select').value,
+        movement: titleCase(block.querySelector('.movement-input').value),
+        equipment: block.querySelector('.equipment-select').value,
+        sets: sets
+      });
+    });
+
+    const session = {
+      date: document.getElementById('date').value,
+      notes: document.getElementById('notes').value,
+      exercises: exercises
+    };
+
+    const queue = getQueue();
+    queue.push(session);
+    saveQueue(queue);
+    renderQueue();
+    flash(`Saved to this phone (${exercises.length} exercise(s)). Queue up more, or export when ready.`);
+
+    document.getElementById('lift-form').reset();
+    document.getElementById('date').valueAsDate = new Date();
+    exercisesContainer.innerHTML = '';
+    exerciseCount = 0;
+    addExerciseBlock();
+  });
+
+  document.getElementById('export-btn').addEventListener('click', () => {
+    const queue = getQueue();
+    if (queue.length === 0) {
+      flash('Nothing queued to export.');
+      return;
+    }
+    const blob = new Blob([JSON.stringify(queue, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    a.href = url;
+    a.download = `lift_export_${timestamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    flash(`Exported ${queue.length} session(s). Save it into iCloud Drive, then clear the queue once imported at home.`);
+  });
+
+  document.getElementById('clear-btn').addEventListener('click', () => {
+    if (confirm('Clear all queued sessions? Only do this after confirming the import worked at home.')) {
+      localStorage.removeItem(STORAGE_KEY);
+      renderQueue();
+      flash('Queue cleared.');
+    }
+  });
+</script>
+</body>
+</html>
